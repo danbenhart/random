@@ -16,6 +16,8 @@ init_measured_degrees = 60 * (2 * np.pi / 360)
 form_1_max_amp = .001     # worst case scenario for lobing error is 10µm for a 10mm radius part
 form_2_max_amp = .0005     # worst case scenario for waviness error is <5µm for a 10mm radius part
 
+init_measurement_pitch = 1 * (2 * np.pi / 360)
+
 
 def fit_circle(x_list, y_list):
     # x_m = np.mean(x_list)
@@ -40,7 +42,7 @@ def fit_circle(x_list, y_list):
     R_2 = Ri_2.mean()
     residu_2 = sum((Ri_2 - R_2) ** 2)
 
-    fit_results = {'x': xc_2, 'y': yc_2, 'r': R_2, 'residu': residu_2}
+    fit_results = {'x': xc_2, 'y': yc_2, 'r': R_2, 'residual': residu_2}
     return fit_results
     # return xc_2, yc_2, R_2
 
@@ -51,93 +53,53 @@ def calc_stuff(nom_diameter=init_nom_radius,
                form_1_wavelength=init_form_1_wave,
                form_2_wavelength=init_form_2_wave,
                start_angle=init_start_angle,
-               measured_degrees=init_measured_degrees):
+               measured_degrees=init_measured_degrees,
+               measurement_pitch=init_measurement_pitch):
     #
     calc_results = {'circle_actual_xs': [],
                     'circle_actual_ys': [],
                     'arc_actual_xs': [],
                     'arc_actual_ys': [],
                     'arc_nominal_xs': [],
-                    'arc_nominal_ys': []}
-
-    # full_radii = []
-    # thetas = []
-
-    # circle_actual_xs = []
-    # circle_actual_ys = []
-    #
-    # arc_actual_xs = []
-    # arc_actual_ys = []
-    #
-    # arc_nominal_xs = []
-    # arc_nominal_ys = []
-
-    # for theta in np.arange(0, 2 * np.pi, 2 * np.pi / 360):
-    #     r = nom_diameter + form_1_amplitude * np.sin(form_1_wavelength * theta)
-    #     r = r * (nom_diameter + form_2_amplitude * np.sin(form_2_wavelength * theta))   # add second form adjustment
-    #     # full_radii.append(r)  # not needed unless using polar chart
-    #     # thetas.append(theta)  # not needed unless using polar chart
-    #     x = r * np.cos(theta)
-    #     y = r * np.sin(theta)
-    #     circle_actual_xs.append(x)
-    #     circle_actual_ys.append(y)
-    #     if start_angle < theta < start_angle + measured_degrees:
-    #         arc_actual_xs.append(x)
-    #         arc_actual_ys.append(y)
-    #         arc_nominal_xs.append(a * np.cos(theta))
-    #         arc_nominal_ys.append(a * np.sin(theta))
+                    'arc_nominal_ys': [],
+                    'arc_actual_residual': 1}
 
     for theta in np.arange(0, 2 * np.pi, 2 * np.pi / 360):
         r = nom_diameter + form_1_amplitude * np.sin(form_1_wavelength * theta)
         r = r * (nom_diameter + form_2_amplitude * np.sin(form_2_wavelength * theta))
-        # calc_results['full_radii'].append(r)
-        # calc_results['thetas'].append(theta)
         x = r * np.cos(theta)
         y = r * np.sin(theta)
         calc_results['circle_actual_xs'].append(x)
         calc_results['circle_actual_ys'].append(y)
-        if start_angle < theta < start_angle + measured_degrees:
-            calc_results['arc_actual_xs'].append(x)
-            calc_results['arc_actual_ys'].append(y)
-            calc_results['arc_nominal_xs'].append(init_nom_radius * np.cos(theta))
-            calc_results['arc_nominal_ys'].append(init_nom_radius * np.sin(theta))
 
-    # measured_radii = []
-    # measured_thetas = []
+    for meas_theta in np.arange(start_angle, start_angle + measured_degrees, measurement_pitch):
+        r = nom_diameter + form_1_amplitude * np.sin(form_1_wavelength * meas_theta)
+        r = r * (nom_diameter + form_2_amplitude * np.sin(form_2_wavelength * meas_theta))
 
-    # arc_nominal_xs = []
-    # arc_nominal_ys = []
-    #
-    # for degree in np.arange(0 + start_angle, measured_degrees + start_angle, 2 * np.pi / 360):
-    #     # measured_radii.append(a)
-    #     # measured_thetas.append(degree)
-    #     arc_nominal_xs.append(a * np.cos(degree))
-    #     arc_nominal_ys.append(a * np.sin(degree))
-
-    # circle_actual_x, circle_actual_y, circle_actual_r = fit_circle(circle_actual_xs, circle_actual_ys)
+        x = r * np.cos(meas_theta)
+        y = r * np.sin(meas_theta)
+        calc_results['arc_actual_xs'].append(x)
+        calc_results['arc_actual_ys'].append(y)
+        calc_results['arc_nominal_xs'].append(init_nom_radius * np.cos(meas_theta))
+        calc_results['arc_nominal_ys'].append(init_nom_radius * np.sin(meas_theta))
 
     circle_actual_results = fit_circle(calc_results['circle_actual_xs'], calc_results['circle_actual_ys'])
     circle_actual_x = circle_actual_results['x']
     circle_actual_y = circle_actual_results['y']
     circle_actual_r = circle_actual_results['r']
 
-    # calc_x, calc_y, calc_r = fit_circle(arc_actual_xs, arc_actual_ys)
     arc_actual_results = fit_circle(calc_results['arc_actual_xs'], calc_results['arc_actual_ys'])
-
     arc_actual_x = arc_actual_results['x']
     arc_actual_y = arc_actual_results['y']
     arc_actual_r = arc_actual_results['r']
+
+    calc_results['arc_actual_residual'] = arc_actual_results['residual']
 
     nominal_full_circle = plt.Circle((circle_actual_x, circle_actual_y),
                                      circle_actual_r,
                                      color='g',
                                      fill=False,
                                      label='nominal_circle')
-    # arc_calc_circle = plt.Circle((calc_x, calc_y),
-    #                          calc_r,
-    #                          color='y',
-    #                          fill=False,
-    #                          label='calculated_circle')
 
     calc_results['nominal_full_circle'] = nominal_full_circle
 
@@ -150,9 +112,6 @@ def calc_stuff(nom_diameter=init_nom_radius,
     calc_results['arc_calc_circle'] = arc_calc_circle
 
     return calc_results
-
-    # return circle_actual_xs, circle_actual_ys, arc_actual_xs, arc_actual_ys, arc_nominal_xs, arc_nominal_ys,
-    # nominal_full_circle, arc_calc_circle
 
 
 fig, ax = plt.subplots()
@@ -216,8 +175,6 @@ form_2_amplitude_slider = Slider(label='form_2\namplitude',
                                  orientation='vertical')
 
 
-# full_xs, full_ys, actual_xs, actual_ys, nominal_xs, nominal_ys, nominal_full_circle, calc_circle = calc_stuff()
-
 init_calc_results = calc_stuff()
 
 
@@ -257,7 +214,8 @@ def update(val):
                                   form_1_amplitude=form_1_amp,
                                   form_1_wavelength=form_1_wavelengths,
                                   form_2_amplitude=form_2_amp,
-                                  form_2_wavelength=form_2_wavelengths)
+                                  form_2_wavelength=form_2_wavelengths,
+                                  measurement_pitch=init_measurement_pitch)
 
     ax.plot(new_calc_results['circle_actual_xs'], new_calc_results['circle_actual_ys'],
             label='actual_circle', color='r')
